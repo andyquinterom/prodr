@@ -1,0 +1,27 @@
+FROM ixpantia/faucet:r4.3 AS base
+# Insert any system dependencies here or
+# anything that needs to be done before
+# installing R packages
+
+FROM base AS renv_build
+
+# Tell Renv where to install packages
+ENV RENV_PATHS_LIBRARY /usr/src/faucet/renv/library
+# Tell Renv to not symlink packages
+ENV RENV_CONFIG_CACHE_SYMLINKS FALSE
+
+COPY --chown=faucet:faucet renv.lock renv.lock
+COPY --chown=faucet:faucet renv/activate.R renv/activate.R
+
+# Install dependencies
+RUN Rscript -e "source(\"renv/activate.R\"); renv::restore()"
+
+FROM base
+
+COPY --chown=faucet:faucet plumber.R plumber.R
+COPY --chown=faucet:faucet ./src/ ./src
+COPY --chown=faucet:faucet prodr.yaml prodr.yaml
+
+COPY --chown=faucet:faucet --from=renv_build \
+    /usr/src/faucet/renv/library/R-4.3/x86_64-pc-linux-gnu \
+    /usr/local/lib/R/site-library
